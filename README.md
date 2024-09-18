@@ -1,15 +1,14 @@
 # miniMNIST-c
 
-This project implements a mini neural network in C for classifying handwritten digits from the MNIST dataset.
+This project implements a **minimal** neural network in C for classifying handwritten digits from the MNIST dataset. The entire implementation is  **~200 lines of code** and uses only the standard C library.
 
 ## Features
 
-- Two-layer neural network (input -> hidden -> output)
-- ReLU activation for hidden layer
-- Softmax activation for output layer
+- Two-layer neural network (input → hidden → output)
+- ReLU activation function for the hidden layer
+- Softmax activation function for the output layer
 - Cross-entropy loss function
-- Stochastic Gradient Descent (SGD) with momentum
-- L2 regularization
+- Stochastic Gradient Descent (SGD) optimizer
 
 ## Performance
 
@@ -55,9 +54,9 @@ gcc -o nn nn.c -lm
 2. Compile the program.
 3. Run the executable:
 
-```bash
-./nn
-```
+   ```bash
+   ./nn
+   ```
 
 The program will train the neural network on the MNIST dataset and output the accuracy and average loss for each epoch.
 
@@ -66,11 +65,10 @@ The program will train the neural network on the MNIST dataset and output the ac
 You can adjust the following parameters in `nn.c`:
 
 - `HIDDEN_SIZE`: Number of neurons in the hidden layer
-- `LEARNING_RATE`: Initial learning rate
-- `MOMENTUM`: Momentum coefficient for SGD
-- `L2_LAMBDA`: L2 regularization coefficient
+- `LEARNING_RATE`: Learning rate for SGD
 - `EPOCHS`: Number of training epochs
 - `BATCH_SIZE`: Mini-batch size for training
+- `TRAIN_SPLIT`: Proportion of data used for training (the rest is used for testing)
 
 ## License
 
