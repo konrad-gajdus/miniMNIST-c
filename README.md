@@ -1,6 +1,6 @@
 # miniMNIST-c
 
-This project implements a **minimal** neural network in C for classifying handwritten digits from the MNIST dataset. The entire implementation is  **~200 lines of code** and uses only the standard C library.
+This project implements a **minimal** neural network in C for classifying handwritten digits from the [MNIST dataset](https://www.kaggle.com/datasets/hojjatk/mnist-dataset?resource=download). The entire implementation is  **~200 lines of code** and uses only the standard C library.
 
 ## Features
 
