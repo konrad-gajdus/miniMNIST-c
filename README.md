@@ -21,7 +21,7 @@ This project implements a mini neural network in C for classifying handwritten d
 ## Compilation
 
 ```bash
-gcc -o nn nn.c -lm
+gcc -O3 -march=native -ffast-math -o nn nn.c -lm
 ```
 
 ## Usage
