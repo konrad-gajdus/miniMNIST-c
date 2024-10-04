@@ -6,7 +6,7 @@
 #define INPUT_SIZE 784
 #define HIDDEN_SIZE 256
 #define OUTPUT_SIZE 10
-#define LEARNING_RATE 0.001f
+#define LEARNING_RATE 0.0005f
 #define MOMENTUM 0.9f
 #define EPOCHS 20
 #define BATCH_SIZE 64
@@ -59,11 +59,9 @@ void init_layer(Layer *layer, int in_size, int out_size) {
 }
 
 void forward(Layer *layer, float *input, float *output) {
-    // Initialize output with biases
     for (int i = 0; i < layer->output_size; i++)
         output[i] = layer->biases[i];
 
-    // Compute output
     for (int j = 0; j < layer->input_size; j++) {
         float in_j = input[j];
         float *weight_row = &layer->weights[j * layer->output_size];
@@ -72,19 +70,22 @@ void forward(Layer *layer, float *input, float *output) {
         }
     }
 
-    // Apply ReLU activation
     for (int i = 0; i < layer->output_size; i++)
         output[i] = output[i] > 0 ? output[i] : 0;
 }
 
 
 void backward(Layer *layer, float *input, float *output_grad, float *input_grad, float lr) {
-    // Initialize input_grad to zero if it's not NULL
-    if (input_grad)
-        for (int j = 0; j < layer->input_size; j++)
+    if (input_grad) {
+        for (int j = 0; j < layer->input_size; j++) {
             input_grad[j] = 0.0f;
+            float *weight_row = &layer->weights[j * layer->output_size];
+            for (int i = 0; i < layer->output_size; i++) {
+                input_grad[j] += output_grad[i] * weight_row[i];
+            }
+        }
+    }
 
-    // Update weights and accumulate input gradients
     for (int j = 0; j < layer->input_size; j++) {
         float in_j = input[j];
         float *weight_row = &layer->weights[j * layer->output_size];
@@ -98,7 +99,6 @@ void backward(Layer *layer, float *input, float *output_grad, float *input_grad,
         }
     }
 
-    // Update biases
     for (int i = 0; i < layer->output_size; i++) {
         layer->bias_momentum[i] = MOMENTUM * layer->bias_momentum[i] + lr * output_grad[i];
         layer->biases[i] -= layer->bias_momentum[i];
@@ -196,6 +196,8 @@ int main() {
     Network net;
     InputData data = {0};
     float learning_rate = LEARNING_RATE, img[INPUT_SIZE];
+    clock_t start, end;
+    double cpu_time_used;
 
     srand(time(NULL));
 
@@ -211,6 +213,7 @@ int main() {
     int test_size = data.nImages - train_size;
 
     for (int epoch = 0; epoch < EPOCHS; epoch++) {
+        start = clock();
         float total_loss = 0;
         for (int i = 0; i < train_size; i++) {
             for (int k = 0; k < INPUT_SIZE; k++)
@@ -218,7 +221,6 @@ int main() {
 
             float* final_output = train(&net, img, data.labels[i], learning_rate);
             total_loss += -logf(final_output[data.labels[i]] + 1e-10f);
-
         }
         int correct = 0;
         for (int i = train_size; i < data.nImages; i++) {
@@ -227,7 +229,11 @@ int main() {
             if (predict(&net, img) == data.labels[i])
                 correct++;
         }
-        printf("Epoch %d, Accuracy: %.2f%%, Avg Loss: %.4f\n", epoch + 1, (float)correct / test_size * 100, total_loss / train_size);
+        end = clock();
+        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+
+        printf("Epoch %d, Accuracy: %.2f%%, Avg Loss: %.4f, Time: %.2f seconds\n", 
+               epoch + 1, (float)correct / test_size * 100, total_loss / train_size, cpu_time_used);
     }
 
     free(net.hidden.weights);
