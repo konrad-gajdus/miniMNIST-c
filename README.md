@@ -13,26 +13,26 @@ This project implements a **minimal** neural network in C for classifying handwr
 ## Performance
 
 ```bash
-Epoch 1, Accuracy: 96.12%, Avg Loss: 0.2188
-Epoch 2, Accuracy: 96.98%, Avg Loss: 0.0875
-Epoch 3, Accuracy: 97.41%, Avg Loss: 0.0561
-Epoch 4, Accuracy: 97.63%, Avg Loss: 0.0383
-Epoch 5, Accuracy: 97.63%, Avg Loss: 0.0270
-Epoch 6, Accuracy: 97.69%, Avg Loss: 0.0193
-Epoch 7, Accuracy: 97.98%, Avg Loss: 0.0143
-Epoch 8, Accuracy: 98.03%, Avg Loss: 0.0117
-Epoch 9, Accuracy: 98.03%, Avg Loss: 0.0103
-Epoch 10, Accuracy: 98.06%, Avg Loss: 0.0094
-Epoch 11, Accuracy: 98.06%, Avg Loss: 0.0087
-Epoch 12, Accuracy: 98.16%, Avg Loss: 0.0081
-Epoch 13, Accuracy: 98.16%, Avg Loss: 0.0078
-Epoch 14, Accuracy: 98.18%, Avg Loss: 0.0075
-Epoch 15, Accuracy: 98.19%, Avg Loss: 0.0074
-Epoch 16, Accuracy: 98.20%, Avg Loss: 0.0072
-Epoch 17, Accuracy: 98.24%, Avg Loss: 0.0070
-Epoch 18, Accuracy: 98.23%, Avg Loss: 0.0069
-Epoch 19, Accuracy: 98.23%, Avg Loss: 0.0069
-Epoch 20, Accuracy: 98.22%, Avg Loss: 0.0068
+Epoch 1, Accuracy: 95.61%, Avg Loss: 0.2717, Time: 2.61 seconds
+Epoch 2, Accuracy: 96.80%, Avg Loss: 0.1167, Time: 2.62 seconds
+Epoch 3, Accuracy: 97.21%, Avg Loss: 0.0766, Time: 2.66 seconds
+Epoch 4, Accuracy: 97.38%, Avg Loss: 0.0550, Time: 2.64 seconds
+Epoch 5, Accuracy: 97.49%, Avg Loss: 0.0397, Time: 2.64 seconds
+Epoch 6, Accuracy: 97.47%, Avg Loss: 0.0285, Time: 2.65 seconds
+Epoch 7, Accuracy: 97.47%, Avg Loss: 0.0205, Time: 2.66 seconds
+Epoch 8, Accuracy: 97.72%, Avg Loss: 0.0151, Time: 2.66 seconds
+Epoch 9, Accuracy: 97.88%, Avg Loss: 0.0112, Time: 2.67 seconds
+Epoch 10, Accuracy: 97.82%, Avg Loss: 0.0084, Time: 2.67 seconds
+Epoch 11, Accuracy: 97.88%, Avg Loss: 0.0063, Time: 2.68 seconds
+Epoch 12, Accuracy: 97.92%, Avg Loss: 0.0049, Time: 2.68 seconds
+Epoch 13, Accuracy: 97.92%, Avg Loss: 0.0039, Time: 2.69 seconds
+Epoch 14, Accuracy: 98.02%, Avg Loss: 0.0032, Time: 2.69 seconds
+Epoch 15, Accuracy: 98.06%, Avg Loss: 0.0027, Time: 2.70 seconds
+Epoch 16, Accuracy: 98.09%, Avg Loss: 0.0024, Time: 2.70 seconds
+Epoch 17, Accuracy: 98.11%, Avg Loss: 0.0021, Time: 2.69 seconds
+Epoch 18, Accuracy: 98.12%, Avg Loss: 0.0019, Time: 2.70 seconds
+Epoch 19, Accuracy: 98.16%, Avg Loss: 0.0017, Time: 2.70 seconds
+Epoch 20, Accuracy: 98.17%, Avg Loss: 0.0015, Time: 2.71 seconds
 ```
 
 ## Prerequisites
@@ -45,7 +45,7 @@ Epoch 20, Accuracy: 98.22%, Avg Loss: 0.0068
 ## Compilation
 
 ```bash
-gcc -o nn nn.c -lm
+gcc -O3 -march=native -ffast-math -o nn nn.c -lm
 ```
 
 ## Usage
