@@ -6,11 +6,13 @@
 #define INPUT_SIZE 784
 #define HIDDEN_SIZE 256
 #define OUTPUT_SIZE 10
-#define LEARNING_RATE 0.001f
+#define LEARNING_RATE 0.0005f
+#define MOMENTUM 0.9f
 #define EPOCHS 40
 #define BATCH_SIZE 64
 #define IMAGE_SIZE 28
 #define TRAIN_SPLIT 0.8
+#define PRINT_INTERVAL 1000
 
 #ifdef _MSC_VER
 #define expf exp
@@ -37,7 +39,7 @@ return(vout);
 
 typedef struct
 	{
-	float *weights, *biases;
+	float *weights, *biases, *weight_momentum, *bias_momentum;
 	int input_size, output_size;
 	} Layer;
 
@@ -71,11 +73,20 @@ void forward(Layer *layer, float *input, float *output)
 int i, j;
 
 for (i = 0; i < layer->output_size; i++)
-	{
 	output[i] = layer->biases[i];
-	for (j = 0; j < layer->input_size; j++)
-		output[i] += input[j] * layer->weights[j * layer->output_size + i];
+
+for (j = 0; j < layer->input_size; j++)
+	{
+	float in_j = input[j];
+	float *weight_row = &layer->weights[j * layer->output_size];
+	for (i = 0; i < layer->output_size; i++)
+		{
+		output[i] += in_j * weight_row[i];
+		}
 	}
+
+for (i = 0; i < layer->output_size; i++)
+	output[i] = output[i] > 0 ? output[i] : 0;
 }
 
 int predict(Network *net, float *input)
@@ -85,14 +96,13 @@ int max_index = 0;
 float hidden_output[HIDDEN_SIZE], final_output[OUTPUT_SIZE];
 
 forward(&net->hidden, input, hidden_output);
-for (i = 0; i < HIDDEN_SIZE; i++)
-	hidden_output[i] = hidden_output[i] > 0 ? hidden_output[i] : 0;  // ReLU
-
 forward(&net->output, hidden_output, final_output);
 softmax(final_output, OUTPUT_SIZE);
 
 for (i = 1; i < OUTPUT_SIZE; i++)
-	if (final_output[i] > final_output[max_index]) { max_index = i; }
+	if (final_output[i] > final_output[max_index])
+		max_index = i;
+
 return(max_index);
 }
 
@@ -172,10 +182,14 @@ for (y = 0; y < IMAGE_SIZE; y++)
 
 void write_layer(Layer *layer, FILE *fp)
 {
-fwrite(&layer->input_size,sizeof(int),1,fp);
-fwrite(&layer->output_size,sizeof(int),1,fp);
-fwrite(layer->weights,sizeof(float),layer->input_size*layer->output_size,fp);
-fwrite(layer->biases,sizeof(float),layer->output_size,fp);
+int n = layer->input_size * layer->output_size;
+
+fwrite(&layer->input_size, sizeof(int), 1, fp);
+fwrite(&layer->output_size, sizeof(int), 1, fp);
+fwrite(layer->weights, sizeof(float), n, fp);
+fwrite(layer->biases, sizeof(float), layer->output_size, fp);
+fwrite(layer->weight_momentum, sizeof(float), n, fp);
+fwrite(layer->bias_momentum, sizeof(float), layer->output_size, fp);
 }
 
 void read_layer(Layer *layer, FILE *fp)
@@ -187,8 +201,12 @@ fread(&layer->output_size, sizeof(int), 1, fp);
 n = layer->input_size * layer->output_size;
 layer->weights = malloc(n * sizeof(float));
 layer->biases = calloc(layer->output_size, sizeof(float));
+layer->weight_momentum = malloc(n * sizeof(float));
+layer->bias_momentum = calloc(layer->output_size, sizeof(float));
 fread(layer->weights, sizeof(float), n, fp);
 fread(layer->biases, sizeof(float), layer->output_size, fp);
+fread(layer->weight_momentum,sizeof(float), n, fp);
+fread(layer->bias_momentum, sizeof(float), layer->output_size, fp);
 }
 
 void load_test_image(char *filename, InputData *data)
@@ -222,6 +240,8 @@ int epoch, i, j, k;
 Network net;
 InputData data = {0};
 float learning_rate = LEARNING_RATE, img[INPUT_SIZE];
+clock_t start, end;
+double cpu_time_used;
 FILE *fp;
 int guess;
 float total_loss = 0;

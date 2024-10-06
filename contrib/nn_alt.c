@@ -6,11 +6,13 @@
 #define INPUT_SIZE 784
 #define HIDDEN_SIZE 256
 #define OUTPUT_SIZE 10
-#define LEARNING_RATE 0.001f
+#define LEARNING_RATE 0.0005f
+#define MOMENTUM 0.9f
 #define EPOCHS 20
 #define BATCH_SIZE 64
 #define IMAGE_SIZE 28
 #define TRAIN_SPLIT 0.8
+#define PRINT_INTERVAL 1000
 
 #ifdef _MSC_VER
 #define expf exp
@@ -37,7 +39,7 @@ return(vout);
 
 typedef struct
 	{
-	float *weights, *biases;
+	float *weights, *biases, *weight_momentum, *bias_momentum;
 	int input_size, output_size;
 	} Layer;
 
@@ -76,6 +78,8 @@ layer->input_size = in_size;
 layer->output_size = out_size;
 layer->weights = malloc(n * sizeof(float));
 layer->biases = calloc(out_size, sizeof(float));
+layer->weight_momentum = calloc(n, sizeof(float));
+layer->bias_momentum = calloc(out_size, sizeof(float));
 
 for (i = 0; i < n; i++)
 	{
@@ -88,40 +92,69 @@ void forward(Layer *layer, float *input, float *output)
 int i, j;
 
 for (i = 0; i < layer->output_size; i++)
-	{
 	output[i] = layer->biases[i];
-	for (j = 0; j < layer->input_size; j++)
-		output[i] += input[j] * layer->weights[j * layer->output_size + i];
+
+for (j = 0; j < layer->input_size; j++)
+	{
+	float in_j = input[j];
+	float *weight_row = &layer->weights[j * layer->output_size];
+	for (i = 0; i < layer->output_size; i++)
+		{
+		output[i] += in_j * weight_row[i];
+		}
 	}
+
+for (i = 0; i < layer->output_size; i++)
+	output[i] = output[i] > 0 ? output[i] : 0;
 }
 
 void backward(Layer *layer, float *input, float *output_grad, float *input_grad, float lr)
 {
 int i, j;
 
-for (i = 0; i < layer->output_size; i++)
+if (input_grad)
 	{
 	for (j = 0; j < layer->input_size; j++)
 		{
-		int idx = j * layer->output_size + i;
-		float grad = output_grad[i] * input[j];
-		layer->weights[idx] -= lr * grad;
-		if (input_grad) { input_grad[j] += output_grad[i] * layer->weights[idx]; }
+		float *weight_row = &layer->weights[j * layer->output_size];
+		input_grad[j] = 0.0f;
+		for (i = 0; i < layer->output_size; i++)
+			{
+			input_grad[j] += output_grad[i] * weight_row[i];
+			}
 		}
-	layer->biases[i] -= lr * output_grad[i];
+	}
+
+for (j = 0; j < layer->input_size; j++)
+	{
+	float in_j = input[j];
+	float *weight_row = &layer->weights[j * layer->output_size];
+	float *momentum_row = &layer->weight_momentum[j * layer->output_size];
+	for (i = 0; i < layer->output_size; i++)
+		{
+		float grad = output_grad[i] * in_j;
+		momentum_row[i] = MOMENTUM * momentum_row[i] + lr * grad;
+		weight_row[i] -= momentum_row[i];
+		if (input_grad)
+			input_grad[j] += output_grad[i] * weight_row[i];
+		}
+	}
+
+for (i = 0; i < layer->output_size; i++)
+	{
+	layer->bias_momentum[i] = MOMENTUM * layer->bias_momentum[i] + lr * output_grad[i];
+	layer->biases[i] -= layer->bias_momentum[i];
 	}
 }
 
-void train(Network *net, float *input, int label, float lr)
+float *train(Network *net, float *input, int label, float lr)
 {
 int i;
-float hidden_output[HIDDEN_SIZE], final_output[OUTPUT_SIZE];
+static float final_output[OUTPUT_SIZE];
+float hidden_output[HIDDEN_SIZE];
 float output_grad[OUTPUT_SIZE] = {0}, hidden_grad[HIDDEN_SIZE] = {0};
 
 forward(&net->hidden, input, hidden_output);
-for (i = 0; i < HIDDEN_SIZE; i++)
-	hidden_output[i] = hidden_output[i] > 0 ? hidden_output[i] : 0;  // ReLU
-
 forward(&net->output, hidden_output, final_output);
 softmax(final_output, OUTPUT_SIZE);
 
@@ -134,6 +167,8 @@ for (i = 0; i < HIDDEN_SIZE; i++)
 	hidden_grad[i] *= hidden_output[i] > 0 ? 1 : 0;  // ReLU derivative
 
 backward(&net->hidden, input, hidden_grad, NULL, lr);
+
+return(final_output);
 }
 
 int predict(Network *net, float *input)
@@ -143,14 +178,13 @@ int max_index = 0;
 float hidden_output[HIDDEN_SIZE], final_output[OUTPUT_SIZE];
 
 forward(&net->hidden, input, hidden_output);
-for (i = 0; i < HIDDEN_SIZE; i++)
-	hidden_output[i] = hidden_output[i] > 0 ? hidden_output[i] : 0;  // ReLU
-
 forward(&net->output, hidden_output, final_output);
 softmax(final_output, OUTPUT_SIZE);
 
 for (i = 1; i < OUTPUT_SIZE; i++)
-	if (final_output[i] > final_output[max_index]) { max_index = i; }
+	if (final_output[i] > final_output[max_index])
+		max_index = i;
+
 return(max_index);
 }
 
@@ -234,6 +268,8 @@ int train_size, test_size;
 Network net;
 InputData data = {0};
 float learning_rate = LEARNING_RATE, img[INPUT_SIZE];
+clock_t start, end;
+double cpu_time_used;
 
 srand(time(NULL));
 
@@ -253,25 +289,15 @@ for (epoch = 0; epoch < EPOCHS; epoch++)
 	{
 	float total_loss = 0;
 	int correct = 0;
-	for (i = 0; i < train_size; i += BATCH_SIZE)
+	start = clock();
+	for (i = 0; i < train_size; i++)
 		{
-		for (j = 0; j < BATCH_SIZE && i + j < train_size; j++)
-			{
-			float hidden_output[HIDDEN_SIZE], final_output[OUTPUT_SIZE];
-			int idx = i + j;
-			for (k = 0; k < INPUT_SIZE; k++)
-				img[k] = data.images[idx * INPUT_SIZE + k] / 255.0f;
+		float *final_output;
+		for (k = 0; k < INPUT_SIZE; k++)
+			img[k] = data.images[i * INPUT_SIZE + k] / 255.0f;
 
-			train(&net, img, data.labels[idx], learning_rate);
-
-			forward(&net.hidden, img, hidden_output);
-			for (k = 0; k < HIDDEN_SIZE; k++)
-				hidden_output[k] = hidden_output[k] > 0 ? hidden_output[k] : 0;  // ReLU
-			forward(&net.output, hidden_output, final_output);
-			softmax(final_output, OUTPUT_SIZE);
-
-			total_loss += -logf(final_output[data.labels[idx]] + 1e-10f);
-			}
+		final_output = train(&net, img, data.labels[i], learning_rate);
+		total_loss += -logf(final_output[data.labels[i]] + 1e-10f);
 		}
 	for (i = train_size; i < data.nImages; i++)
 		{
@@ -279,13 +305,21 @@ for (epoch = 0; epoch < EPOCHS; epoch++)
 			img[k] = data.images[i * INPUT_SIZE + k] / 255.0f;
 		if (predict(&net, img) == data.labels[i]) correct++;
 		}
-	printf("Epoch %d, Accuracy: %.2f%%, Avg Loss: %.4f\n", epoch + 1, (float)correct / test_size * 100, total_loss / train_size);
+	end = clock();
+	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+
+	printf("Epoch %d, Accuracy: %.2f%%, Avg Loss: %.4f, Time: %.2f seconds\n", 
+		epoch + 1, (float)correct / test_size * 100, total_loss / train_size, cpu_time_used);
 	}
 
 free(net.hidden.weights);
 free(net.hidden.biases);
+free(net.hidden.weight_momentum);
+free(net.hidden.bias_momentum);
 free(net.output.weights);
 free(net.output.biases);
+free(net.output.weight_momentum);
+free(net.output.bias_momentum);
 free(data.images);
 free(data.labels);
 
