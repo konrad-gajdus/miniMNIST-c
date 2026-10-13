@@ -12,13 +12,13 @@
                              ░░░░░░
 ```
 
-**tinymnist** is a minimal neural network in pure C that learns to classify handwritten MNIST digits. ~250 lines, no dependencies beyond the C standard library.
+**tinymnist** is a minimal neural network in pure C that learns to classify handwritten [MNIST](https://huggingface.co/datasets/ylecun/mnist) digits. ~250 lines, no dependencies beyond the C standard library.
 
 **784 → 256 (ReLU) → 10 (softmax)** · cross-entropy loss · SGD with momentum
 
 ## Quick start
 
-Put `train-images.idx3-ubyte` and `train-labels.idx1-ubyte` in `data/`, then:
+The MNIST training set is included in `data/`.
 
 ```bash
 gcc -O3 -march=native -ffast-math -o main main.c -lm
