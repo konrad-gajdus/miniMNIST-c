@@ -9,10 +9,8 @@
 #define LEARNING_RATE 0.0005f
 #define MOMENTUM 0.9f
 #define EPOCHS 20
-#define BATCH_SIZE 64
 #define IMAGE_SIZE 28
 #define TRAIN_SPLIT 0.8
-#define PRINT_INTERVAL 1000
 
 #define TRAIN_IMG_PATH "data/train-images.idx3-ubyte"
 #define TRAIN_LBL_PATH "data/train-labels.idx1-ubyte"
@@ -58,45 +56,39 @@ void init_layer(Layer *layer, int in_size, int out_size) {
         layer->weights[i] = ((float)rand() / RAND_MAX - 0.5f) * 2 * scale;
 }
 
-void forward(Layer *layer, float *input, float *output) {
+void forward(Layer *layer, float *input, float *output, int relu) {
     for (int i = 0; i < layer->output_size; i++)
         output[i] = layer->biases[i];
 
     for (int j = 0; j < layer->input_size; j++) {
         float in_j = input[j];
+        if (in_j == 0.0f) continue;
         float *weight_row = &layer->weights[j * layer->output_size];
         for (int i = 0; i < layer->output_size; i++) {
             output[i] += in_j * weight_row[i];
         }
     }
 
-    for (int i = 0; i < layer->output_size; i++)
-        output[i] = output[i] > 0 ? output[i] : 0;
+    if (relu)
+        for (int i = 0; i < layer->output_size; i++)
+            output[i] = output[i] > 0 ? output[i] : 0;
 }
 
 
 void backward(Layer *layer, float *input, float *output_grad, float *input_grad, float lr) {
-    if (input_grad) {
-        for (int j = 0; j < layer->input_size; j++) {
-            input_grad[j] = 0.0f;
-            float *weight_row = &layer->weights[j * layer->output_size];
-            for (int i = 0; i < layer->output_size; i++) {
-                input_grad[j] += output_grad[i] * weight_row[i];
-            }
-        }
-    }
-
     for (int j = 0; j < layer->input_size; j++) {
         float in_j = input[j];
+        if (in_j == 0.0f && !input_grad) continue;
         float *weight_row = &layer->weights[j * layer->output_size];
         float *momentum_row = &layer->weight_momentum[j * layer->output_size];
+        float grad_j = 0.0f;
         for (int i = 0; i < layer->output_size; i++) {
-            float grad = output_grad[i] * in_j;
-            momentum_row[i] = MOMENTUM * momentum_row[i] + lr * grad;
+            grad_j += output_grad[i] * weight_row[i];
+            momentum_row[i] = MOMENTUM * momentum_row[i] + lr * output_grad[i] * in_j;
             weight_row[i] -= momentum_row[i];
-            if (input_grad)
-                input_grad[j] += output_grad[i] * weight_row[i];
         }
+        if (input_grad)
+            input_grad[j] = grad_j;
     }
 
     for (int i = 0; i < layer->output_size; i++) {
@@ -111,8 +103,8 @@ float* train(Network *net, float *input, int label, float lr) {
     float hidden_output[HIDDEN_SIZE];
     float output_grad[OUTPUT_SIZE] = {0}, hidden_grad[HIDDEN_SIZE] = {0};
 
-    forward(&net->hidden, input, hidden_output);
-    forward(&net->output, hidden_output, final_output);
+    forward(&net->hidden, input, hidden_output, 1);
+    forward(&net->output, hidden_output, final_output, 0);
     softmax(final_output, OUTPUT_SIZE);
 
     for (int i = 0; i < OUTPUT_SIZE; i++)
@@ -131,8 +123,8 @@ float* train(Network *net, float *input, int label, float lr) {
 int predict(Network *net, float *input) {
     float hidden_output[HIDDEN_SIZE], final_output[OUTPUT_SIZE];
 
-    forward(&net->hidden, input, hidden_output);
-    forward(&net->output, hidden_output, final_output);
+    forward(&net->hidden, input, hidden_output, 1);
+    forward(&net->output, hidden_output, final_output, 0);
     softmax(final_output, OUTPUT_SIZE);
 
     int max_index = 0;
@@ -214,6 +206,7 @@ int main() {
 
     for (int epoch = 0; epoch < EPOCHS; epoch++) {
         start = clock();
+        shuffle_data(data.images, data.labels, train_size);
         float total_loss = 0;
         for (int i = 0; i < train_size; i++) {
             for (int k = 0; k < INPUT_SIZE; k++)
